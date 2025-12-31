@@ -54,7 +54,7 @@ function handle_code(socket, code)
 	}
 	else
 	{
-		Util.send(socket, "by")
+		Util.send(socket, "err_invalid_code")
 	}
 }
 
