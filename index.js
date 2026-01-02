@@ -72,7 +72,7 @@ function handle_socket_id(socket, id)
 
 	Util.set_socket_id(sockets[id], id)
 
-	Util.send(sockets[id], "lobby_joined")
+	Util.send(sockets[id], "lobby_joined", [id])
 }
 
 function handle_message_redirect(socket, message)
