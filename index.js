@@ -77,7 +77,7 @@ function handle_socket_id(socket, id)
 
 function handle_full_lobby(socket, id)
 {
-	console.log("Error lobby full recieved", id, "from", socket.id)
+	console.log("Error lobby full recieved from", socket.id)
 	sockets[id] = queue[socket.id].shift()
 	if (sockets[id].readyState == WebSocket.OPEN)
 	{
