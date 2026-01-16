@@ -75,6 +75,17 @@ function handle_socket_id(socket, id)
 	Util.send(sockets[id], "lobby_joined", [id])
 }
 
+function handle_full_lobby(socket, id)
+{
+	console.log("Error lobby full recieved", id, "from", socket.id)
+	sockets[id] = queue[socket.id].shift()
+	if (sockets[id].readyState == WebSocket.OPEN)
+	{
+		Util.send(sockets[id], "err_max_player_count_exceeded")
+	}
+	delete sockets[id]
+}
+
 function handle_message_redirect(socket, message)
 {
 	if (socket.id.slice(-4) !== message["id"].slice(-4))
@@ -100,6 +111,9 @@ function handle_message(socket, data)
 			break
 		case "register_socket_id":
 			handle_socket_id(socket, message["payload"])
+			break
+		case "err_max_player_count_exceeded":
+			handle_full_lobby(socket, message["payload"])
 			break
 		default:
 			handle_message_redirect(socket, message)
