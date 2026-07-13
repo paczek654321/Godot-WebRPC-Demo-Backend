@@ -34,7 +34,7 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 	{
 		if (!(code in lobbies))
 		{
-			socket.close()
+			socket.close(4001, "Lobby not found")
 			console.log("New connection provided an invalid lobby code, disconnecting.")
 			return	
 		}
@@ -60,7 +60,7 @@ function handle_disconnect(socket: WebSocket, code: string, playerID: number)
 	lobbies[code]?.Sockets.splice(playerID, 1)
 	if (playerID == 0)
 	{
-		lobbies[code].Sockets.forEach(socket => socket.close());
+		lobbies[code].Sockets.forEach(socket => socket.close(1001, "Host abandoned lobby"));
 		delete lobbies[code]
 		console.log(`Host of ${code} disconnected, closing the lobby.`)
 	}
