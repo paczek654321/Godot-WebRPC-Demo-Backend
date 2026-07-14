@@ -8,7 +8,7 @@ const wss = new WebSocketServer(
 
 type Lobby =
 {
-	Sockets: WebSocket[]
+	Sockets: Record<number, WebSocket>
 	NextID: number
 }
 
@@ -27,7 +27,7 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 	if (code == null)
 	{
 		code = generate_code(4)
-		lobbies[code] = {Sockets: [], NextID: 2}
+		lobbies[code] = {Sockets: {}, NextID: 2}
 		console.log(`Creating a new lobby (${code})`)
 	}
 	else
@@ -42,7 +42,7 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 		console.log(`Player (${playerID}) joined lobby: ${code}.`)
 	}
 
-	lobbies[code].Sockets.push(socket)
+	lobbies[code].Sockets[playerID] = socket
 
 	socket.on("message", m => handle_message(socket, code, playerID, m))
 	socket.on("close", () => handle_disconnect(socket, code, playerID))
@@ -57,10 +57,14 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 
 function handle_disconnect(socket: WebSocket, code: string, playerID: number)
 {
-	lobbies[code]?.Sockets.splice(playerID, 1)
-	if (playerID == 0)
+	delete lobbies[code]?.Sockets[playerID]
+	if (playerID === 1)
 	{
-		lobbies[code].Sockets.forEach(socket => socket.close(1001, "Host abandoned lobby"));
+		const sockets = lobbies[code]?.Sockets ?? {}
+		for (const target of Object.values(sockets))
+		{
+			target.close(1001, "Host abandoned lobby")
+		}
 		delete lobbies[code]
 		console.log(`Host of ${code} disconnected, closing the lobby.`)
 	}
@@ -73,10 +77,16 @@ function handle_disconnect(socket: WebSocket, code: string, playerID: number)
 function handle_message(socket: WebSocket, code: string, playerIDX: number, data: WebSocket.RawData)
 {
 	console.log(`Player (${code}: ${playerIDX}) sent:`, JSON.stringify(JSON.parse(data.toString()), null, 2))
-	lobbies[code].Sockets.forEach(target =>
+
+	const sockets = lobbies[code]?.Sockets ?? {}
+
+	for (const target of Object.values(sockets))
 	{
-		if (target !== socket) { target.send(data) }
-	});
+		if (target !== socket && target.readyState === WebSocket.OPEN)
+		{
+			target.send(data)
+		}
+	}
 }
 
 function generate_code(length: number): string
