@@ -10,6 +10,13 @@ type Lobby =
 {
 	Sockets: Record<number, WebSocket>
 	NextID: number
+	Locked: Boolean
+}
+
+const SystemMessage =
+{
+	LockLobby: 1,
+	UnlockLobby: 2
 }
 
 const lobbies: Record<string, Lobby> = {}
@@ -27,12 +34,12 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 	if (code == null)
 	{
 		code = generate_code(4)
-		lobbies[code] = {Sockets: {}, NextID: 2}
+		lobbies[code] = {Sockets: {}, NextID: 2, Locked: false}
 		console.log(`Creating a new lobby (${code})`)
 	}
 	else
 	{
-		if (!(code in lobbies))
+		if (!(code in lobbies) || lobbies[code].Locked)
 		{
 			socket.close(4001, "Lobby not found")
 			console.log("New connection provided an invalid lobby code, disconnecting.")
@@ -44,7 +51,7 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 
 	lobbies[code].Sockets[playerID] = socket
 
-	socket.on("message", m => handle_message(socket, code, playerID, m))
+	socket.on("message", (m, b) => handle_message(socket, code, playerID, m, b))
 	socket.on("close", () => handle_disconnect(socket, code, playerID))
 
 	socket.send(JSON.stringify(
@@ -74,9 +81,44 @@ function handle_disconnect(socket: WebSocket, code: string, playerID: number)
 	}
 }
 
-function handle_message(socket: WebSocket, code: string, playerIDX: number, data: WebSocket.RawData)
+function handle_message(socket: WebSocket, code: string, playerID: number, data: WebSocket.RawData, isBinary: boolean)
 {
-	console.log(`Player (${code}: ${playerIDX}) sent:`, JSON.stringify(JSON.parse(data.toString()), null, 2))
+	if (isBinary)
+	{
+		if (Buffer.isBuffer(data))
+		{
+			handle_system_message(socket, code, playerID, data)
+		}
+	}
+	else
+	{
+		redirect_message(socket, code, playerID, data)
+	}
+	
+}
+
+function handle_system_message(socket: WebSocket, code: string, playerID: number, data: Buffer)
+{
+	switch (data[0])
+	{
+		case SystemMessage.LockLobby:
+			if (playerID == 1)
+			{
+				lobbies[code].Locked = true
+			}
+			break;
+		case SystemMessage.UnlockLobby:
+			if (playerID == 1)
+			{
+				lobbies[code].Locked = false
+			}
+			break;
+	}
+}
+
+function redirect_message(socket: WebSocket, code: string, playerID: number, data: WebSocket.RawData)
+{
+	console.log(`Player (${code}: ${playerID}) sent:`, JSON.stringify(JSON.parse(data.toString()), null, 2))
 
 	const sockets = lobbies[code]?.Sockets ?? {}
 
