@@ -10,7 +10,8 @@ type Lobby =
 {
 	Sockets: Record<number, WebSocket>
 	NextID: number
-	Locked: Boolean
+	Locked: boolean
+	Version: string
 }
 
 const SystemMessage =
@@ -29,12 +30,13 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 {
 	const url = new URL(request.url ?? "", `http://${request.headers.host}`)
 	let code = url.searchParams.get("code")
+	let version = url.searchParams.get("version")
 	let playerID = 1
 
 	if (code == null)
 	{
 		code = generate_code(4)
-		lobbies[code] = {Sockets: {}, NextID: 2, Locked: false}
+		lobbies[code] = {Sockets: {}, NextID: 2, Locked: false, Version: version ?? ""}
 		console.log(`Creating a new lobby (${code})`)
 	}
 	else
@@ -46,6 +48,7 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 			return	
 		}
 		playerID = lobbies[code].NextID++
+		version = lobbies[code].Version
 		console.log(`Player (${playerID}) joined lobby: ${code}.`)
 	}
 
@@ -58,6 +61,7 @@ function handle_connect(socket: WebSocket, request: IncomingMessage)
 	{
 		type: "init",
 		code: code,
+		version: version,
 		id: playerID
 	}))
 }
